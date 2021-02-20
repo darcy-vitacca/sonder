@@ -1,4 +1,5 @@
 import {Entity as TOEntity, PrimaryGeneratedColumn, Column, Index} from "typeorm";
+import{ IsEmail} from 'class-validator'
 import Entity from './Entity'
 
 @TOEntity('users')
@@ -10,10 +11,13 @@ export class User extends Entity {
 
     @PrimaryGeneratedColumn()
     id: number;
+   
 
    @Index()
+   @IsEmail() 
    @Column({unique: true})
    email: string;
+   
 
    @Index()
    @Column({unique: true})
@@ -24,9 +28,13 @@ export class User extends Entity {
    
    @Column()
    password: string;
-   
+
    @Index()
    @Column()
    name: string;
+   
+   @Index()
+   @Column()
+   age: string;
 
 }

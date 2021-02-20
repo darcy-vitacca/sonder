@@ -1,14 +1,15 @@
 import { Request, Response, Router } from "express"
 import { User } from "../entities/User"
 
-const register = async (req: Request, res: Response) =>{
-    const { email, username, password , name, phoneNumber} = req.body
+const register = async (req: Request, res: Response) => {
+    const { email, username, password, name, phoneNumber, age } = req.body
     try {
         //Validate
         //Check data base for email and phone number and username
-        const user  = await new User({ username, email, name, phoneNumber, password})
-        await user.save()
+        const user = await new User({ username, email, name, phoneNumber, password, age })
         //Create entry 
+        await user.save()
+
         return res.json(user)
     } catch (err) {
         return res.status(500).json(err)
@@ -20,9 +21,9 @@ const register = async (req: Request, res: Response) =>{
 //     try {
 //         //Validate data
 //         //Check using bcrypt for passowrd 
-        
+
 //     } catch (err) {
-        
+
 //     }
 
 // }

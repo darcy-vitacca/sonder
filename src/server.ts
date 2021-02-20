@@ -16,7 +16,7 @@ app.use(express.json())
 app.use(morgan('dev'))
 
 //Routes
-app.use('api/auth', authRoutes)
+app.use('/api/auth', authRoutes)
 
 
 
@@ -28,7 +28,7 @@ app.listen(5000, async () =>{
         await createConnection();
         console.log('Database')
     } catch (err) {
-        
+        console.log(err)
     }
 })
 
