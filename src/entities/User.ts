@@ -30,16 +30,18 @@ export default class User extends Entity {
 
     @Index()
     @Column()
+    @Length(1, 255, { message: 'Name is empty' })
     name: string;
-
+    
+    @Exclude()
     @Index()
     @Min(18)
     @Column()
     age: number;
 
-    @Exclude()
-    @Column({ unique: true })
-    phoneNumber: string;
+    // @Exclude()
+    // @Column({ unique: true })
+    // phoneNumber: string;
 
     @Exclude()
     @Index()
@@ -50,7 +52,7 @@ export default class User extends Entity {
     @BeforeInsert()
     async hashPassword() {
         this.password = await bcrypt.hash(this.password, 6)
-        this.phoneNumber = await bcrypt.hash(this.password, 6)
+        // this.phoneNumber = await bcrypt.hash(this.password, 6)
     }
 
     //this goes through and if a field has exclude it returns without it

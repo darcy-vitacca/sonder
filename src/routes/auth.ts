@@ -15,23 +15,30 @@ const mapErrors = (errors: Object[]) => {
     }, {})
 }
 
+
 const register = async (req: Request, res: Response) => {
-    const { email, username, password, name, phoneNumber, age } = req.body
+    const { email, username, password, 
+        name, 
+        // phoneNumber, 
+        age } = req.body
     let errors: any = {}
     try {
         //Validate
         const emailExists = await User.findOne({ email })
         const usernameExists = await User.findOne({ username })
-        const phoneNumberExists = await User.findOne({ phoneNumber })
+        // const phoneNumberExists = await User.findOne({ phoneNumber })
 
         if (emailExists) errors.email = 'Email is already taken'
         if (usernameExists) errors.username = 'Username is already taken'
-        if (phoneNumberExists) errors.phoneNumber = 'Phone number is already taken'
+        // if (phoneNumberExists) errors.phoneNumber = 'Phone number is already taken'
         if (Object.keys(errors).length > 0) {
             return res.status(400).json(errors);
         }
         //Check data base for email and phone number and username
-        const user = await new User({ username, email, name, phoneNumber, password, age })
+        const user = await new User({ username, email, 
+            name, 
+            // phoneNumber, 
+            password, age })
         errors = await validate(user)
         if (errors.length > 0) {
             return res.status(400).json(mapErrors(errors))
@@ -50,11 +57,11 @@ const login = async (req: Request, res: Response) => {
     let errors: any = {}
     try {
         //Validate data
-
+    console.log(isEmpty(username))
         //Check if it's empty
         if (isEmpty(username)) errors.username = 'Username must not be empty'
         if (isEmpty(password)) errors.password = 'Password must not be empty'
-        if (errors.length > 0) return res.status(400).json(errors)
+        if (Object.keys(errors).length > 0) return res.status(400).json(errors)
 
         //Checks if username exists
         const user = await User.findOne({ username })
