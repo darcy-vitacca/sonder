@@ -11,7 +11,7 @@ import express from "express";
 import morgan from "morgan"
 import trim from './middleware/trim'
 
-
+//
 const app = express();
 const PORT = process.env.PORT
 //this takes our express app and attaches it to our socket.io instance
