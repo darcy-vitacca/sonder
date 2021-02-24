@@ -11,6 +11,7 @@ export default function RoomName() {
   //Local State
   //Global State
   //Utils
+
   const router = useRouter();
   const roomname = router.query.roomname;
   const userVideo = useRef<any>();
@@ -20,18 +21,17 @@ export default function RoomName() {
   const otherUser = useRef<any>();
   const userStream = useRef<any>();
 
-  // const { data, error } = useSWR<any>(roomname ? `/room/${roomname}` : null);
-  // if (error) router.push("/");
-  // if (data) console.log(data);
-  //Asks the user for access
   useEffect(() => {
+    if (socketRef.current) socketRef.current.disconnect();
     navigator.mediaDevices
       .getUserMedia({ audio: true, video: true })
       .then((stream) => {
         userVideo.current.srcObject = stream;
         userStream.current = stream;
 
-        socketRef.current = io.connect("/");
+        socketRef.current = io.connect("http://localhost:5000", {
+          forceNew: true,
+        });
         socketRef.current.emit("join room", roomname);
 
         socketRef.current.on("other user", (userID) => {
@@ -47,6 +47,20 @@ export default function RoomName() {
         socketRef.current.on("answer", handleAnswer);
         socketRef.current.on("ice-candidate", handleNewICECandidateMsg);
       });
+    
+    //Removes sockets on reload
+    const removeSocketRefs = async () => {;
+      await socketRef.current.emit("user-leaving-room", roomname);
+      await socketRef.current.disconnect();
+    };
+    window.addEventListener("beforeunload", removeSocketRefs);
+    //Removes sockets on page change
+    return async () => {
+      console.log(otherUser);
+      await socketRef.current.emit("user-leaving-room", roomname);
+      await socketRef.current.disconnect();
+      console.log(otherUser.current);
+    };
   }, []);
 
   const callUser = (userID: string) => {
@@ -60,7 +74,6 @@ export default function RoomName() {
 
   const createPeer = (userID?: string) => {
     //This helps us figure out our path for peer connections to come to and agreement, When we are recieving the call we don't have to pass this anything
-
     const peer = new RTCPeerConnection({
       iceServers: [
         {
@@ -73,9 +86,7 @@ export default function RoomName() {
         },
       ],
     });
-    //Then we attach three even handlers on the peeer, on icecandate
 
-    //whenever the browser decided it's going to send another icecandate this fires
     peer.onicecandidate = handleICECandidateEvent;
     //This represent whenever we are recieving a remote peer once a connection has been established, so we can get the stream and simply on screen. Then we can grab the stream and attache dto partner ref
     peer.ontrack = handleTrackEvent;
@@ -84,6 +95,7 @@ export default function RoomName() {
 
     return peer;
   };
+
   const handleNegotiationNeededEvent = (userID) => {
     //We are taking this offer and setting a local localDescription
     //For every offer and answer a peer will have the chance to set it as
@@ -130,13 +142,14 @@ export default function RoomName() {
       .then(() => {
         //Once we have answered back to the person who is calling us
         const payload = {
-          taget: incoming.caller,
+          target: incoming.caller,
           caller: socketRef.current.id,
           sdp: peerRef.current.localDescription,
         };
         socketRef.current.emit("answer", payload);
       });
   };
+
   const handleAnswer = (message) => {
     //we then get the message which is an answer so we create a description object and then pass it to our setRemote on a peer and completes the cycle
     const desc = new RTCSessionDescription(message.sdp);
@@ -144,7 +157,7 @@ export default function RoomName() {
   };
 
   const handleICECandidateEvent = (e) => {
-    //this creates a ref for candiate, and each person has an other user ref that represents a person,
+    //this creates a ref for candiate, and each person has an other user ref that
     if (e.candidate) {
       const payload = {
         target: otherUser.current,
@@ -154,13 +167,14 @@ export default function RoomName() {
     }
   };
 
-  const handleNewICECandidateMsg = (incoming) => {
-    //this creates a candiate
+  const handleNewICECandidateMsg = async (incoming) => {
+    console.log(incoming);
+    //   //this creates a candiate
     const candidate = new RTCIceCandidate(incoming);
-    //then we call create ice candidate on our peer, then the peers will be swapping candiadtes back and fourther till they can agree on a method that will work for themf or a proper handsake
+    console.log(candidate);
+    //then we call create ice candidate on our peer, then the peers will be swapping candiadtes back and fourth till they can agree on a method that will work for them or a proper handsake
     peerRef.current.addIceCandidate(candidate).catch((e) => console.log(e));
   };
-
   //This recieves an event and reference the first stream from the users audio and then attached to the sources object so then it's display on our video objects
   const handleTrackEvent = (e) => {
     partnerVideo.current.srcObject = e.streams[0];
@@ -170,11 +184,11 @@ export default function RoomName() {
       <Head>
         <title>{roomname}</title>
       </Head>
-
-      <div className="pt-14 flex flex-col justify-center content-start align-center  w-60 ">
+  
+      <div className="flex flex-col content-start justify-center pt-14 align-center w-60 ">
         <h1 className="text-3xl">{roomname}</h1>
-        <video autoPlay ref={userVideo} />
-        <video autoPlay ref={partnerVideo} />
+        <video autoPlay ref={userVideo && userVideo} className="mb-4" />
+        <video autoPlay ref={partnerVideo && partnerVideo} />
       </div>
     </div>
   );
@@ -189,5 +203,6 @@ export const getServerSideProps: GetServerSideProps = async ({ req, res }) => {
     return { props: {} };
   } catch (err) {
     res.writeHead(307, { Location: "/login" }).end();
+    return;
   }
 };

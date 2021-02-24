@@ -15,10 +15,18 @@ import trim from './middleware/trim'
 const app = express();
 const PORT = process.env.PORT
 //this takes our express app and attaches it to our socket.io instance
-const server = require('http').Server(app)
-const io = require('socket.io')(server)
+const http = require("http").Server(app);
+// set up socket.io and bind it to our
+// http server.
+const io = require("socket.io")(http, {
+    cors: {
+        origin: "http://localhost:3000",
+        methods: ["GET", "POST"]
+    }
+});
 
 
+app.set("port", PORT || 3000);
 app.use(express.json())
 app.use(morgan('dev'))
 app.use(trim)
@@ -43,7 +51,7 @@ const rooms = {};
 
 //socket io server
 //When someone connects to our socket.io server this connection even fires
- //socket io then generates a socket for an individual person
+//socket io then generates a socket for an individual person
 io.on("connection", socket => {
     //THIS IS ALL JOIN ROOM LOGIN
     //and this is an event listener that gets attached and then the join room 
@@ -54,7 +62,7 @@ io.on("connection", socket => {
         //room under that id and we add our socket id to an array of id's in the room
         if (rooms[roomID]) {
             rooms[roomID].push(socket.id);
-        //Or else we create a new room id and add an array with our id
+            //Or else we create a new room id and add an array with our id
         } else {
             rooms[roomID] = [socket.id];
         }
@@ -84,6 +92,25 @@ io.on("connection", socket => {
     socket.on("answer", payload => {
         io.to(payload.target).emit("answer", payload);
     });
+    socket.on("user-leaving-room", roomID => {
+        socket.roomname = roomID
+        console.log(socket)
+    })
+    socket.on("disconnect", payload => {
+        const roomname = rooms[socket.roomname]
+        const disconnectingUserId = socket.id
+         //  console.log(rooms)
+        //find and delete id from room, then check if there are any,if there aren't delete room
+       
+        if (roomname) {
+            const filteredRoomIdArray = roomname.filter(id => {
+                return id !== disconnectingUserId
+
+            })
+            rooms[socket.roomname] = filteredRoomIdArray
+        }
+        // console.log(rooms)
+    });
 
     //This is when the two pairs have tried to connect. An ice candiate is when each peer 
     //has come to a mutual agreement about which candiate makes sense for them. Then the 
@@ -97,8 +124,7 @@ io.on("connection", socket => {
 
 
 
-
-app.listen(PORT, async () => {
+http.listen(PORT, async () => {
     console.log('Server running at http://localhost:5000');
     try {
         await createConnection();
@@ -107,5 +133,17 @@ app.listen(PORT, async () => {
         console.log(err)
     }
 })
+
+
+
+// app.listen(PORT, async () => {
+//     console.log('Server running at http://localhost:5000');
+//     try {
+//         await createConnection();
+//         console.log('Database')
+//     } catch (err) {
+//         console.log(err)
+//     }
+// })
 
 

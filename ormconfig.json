@@ -6,7 +6,7 @@
    "password": "test",
    "database": "sonder",
    "synchronize": true,
-   "logging": true,
+   "logging": false,
    "entities": [
       "src/entities/**/*.ts"
    ],

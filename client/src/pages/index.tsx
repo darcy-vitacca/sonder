@@ -18,14 +18,11 @@ export default function Home() {
     if (!authenticated) {
       router.push("/login");
     } else {
+      // cleans url up
       const urlRoomName = name.replace(/ /g, "").toLocaleLowerCase();
-      router.push(`/room/${urlRoomName}`);
-    }
-
-    //cleans url up
-    // Send request to server to start websocket
-    console.log("working");
+      router.push(`/room/${urlRoomName}`)
   };
+}
 
   return (
     <div className="flex justify-center">
@@ -34,7 +31,7 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <div className="pt-14 flex flex-col justify-center content-start align-center  w-60 ">
+      <div className="flex flex-col content-start justify-center pt-14 align-center w-60 ">
         <h1 className="text-3xl">Welcome to Sonder</h1>
         <h1>
           Online <span className="text-green-500">22</span> 🤖
@@ -43,7 +40,7 @@ export default function Home() {
           <button
             key={name}
             onClick={(e) => enterRoom(e, name)}
-            className="mt-2 w-full py-2 mb-2 text-m font-bold text-white uppercase bg-blue-500 border border-blue-500 rounded"
+            className="w-full py-2 mt-2 mb-2 font-bold text-white uppercase bg-blue-500 border border-blue-500 rounded text-m"
           >
             {name}
           </button>
