@@ -46,9 +46,9 @@ app.use(cors({
 app.use('/api/auth', authRoutes)
 
 
-
-const rooms = {};
-
+//TODO: change back to const 
+let rooms = {};
+//TODO: when you send the otherUser id its actually the user id
 //socket io server
 //When someone connects to our socket.io server this connection even fires
 //socket io then generates a socket for an individual person
@@ -58,6 +58,7 @@ io.on("connection", socket => {
     // event gets fired from the client side. When it is fired off we pull the roomId
     //out of the url and sends it down to the the server
     socket.on("join room", roomID => {
+        console.log(rooms)
         //Here we pul the room id from the url then we check if there is already a
         //room under that id and we add our socket id to an array of id's in the room
         if (rooms[roomID]) {
@@ -92,16 +93,38 @@ io.on("connection", socket => {
     socket.on("answer", payload => {
         io.to(payload.target).emit("answer", payload);
     });
-    socket.on("user-leaving-room", roomID => {
-        socket.roomname = roomID
-        console.log(socket)
+    socket.on("user-leaving-room", userDetails => {
+        console.log(rooms)
+        socket.roomname = userDetails.roomname
+        const userIdLeaving = socket.id
+        const otherUser = userDetails?.otherUser
+
+        if (otherUser) {
+            socket.broadcast.to(otherUser).emit('peer-left', socket.id);
+        }
+    })
+    socket.on("reset-rooms", payload => {
+        console.log(rooms)
+        rooms= {}
+        console.log(rooms)
+
+    })
+    socket.on("timer-up", payload => {
+        console.log(payload)
+        console.log(socket.id)
+        // socket.emit("disconnect", payload)
+        socket.emit("user-leaving-room", payload)
+
     })
     socket.on("disconnect", payload => {
+        console.log(rooms)
         const roomname = rooms[socket.roomname]
         const disconnectingUserId = socket.id
-         //  console.log(rooms)
+        //  console.log(rooms)
         //find and delete id from room, then check if there are any,if there aren't delete room
-       
+        //TODO: need to cut video on the the other end
+        //TODO: video is only being cut when leaving page
+        //TODO: creating duplicates of rooms
         if (roomname) {
             const filteredRoomIdArray = roomname.filter(id => {
                 return id !== disconnectingUserId

@@ -5,22 +5,27 @@ import { Categories } from "../../utils/categories";
 import useSWR from "swr";
 import Head from "next/head";
 import io, { caller } from "socket.io-client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function RoomName() {
   //Local State
+  const initialStateTimer = 10;
+  const [timer, setTimer] = useState(initialStateTimer);
   //Global State
   //Utils
-
   const router = useRouter();
   const roomname = router.query.roomname;
-  const userVideo = useRef<any>();
-  const partnerVideo = useRef<any>();
-  const peerRef = useRef<any>();
+  const timerRef = useRef<any>();
+  //User
   const socketRef = useRef<any>();
-  const otherUser = useRef<any>();
+  const userVideo = useRef<any>();
   const userStream = useRef<any>();
+  //Peer User
+  const peerRef = useRef<any>();
+  const otherUser = useRef<any>();
+  const partnerVideo = useRef<any>();
 
+  //Gathers audio and video and adds socket listeners as well as emit messages depending on room
   useEffect(() => {
     if (socketRef.current) socketRef.current.disconnect();
     navigator.mediaDevices
@@ -29,37 +34,44 @@ export default function RoomName() {
         userVideo.current.srcObject = stream;
         userStream.current = stream;
 
+        //Server side messaging
         socketRef.current = io.connect("http://localhost:5000", {
           forceNew: true,
         });
         socketRef.current.emit("join room", roomname);
 
+        //Server side listeners
         socketRef.current.on("other user", (userID) => {
           callUser(userID);
           otherUser.current = userID;
         });
-
         socketRef.current.on("user joined", (userID) => {
           otherUser.current = userID;
         });
-
         socketRef.current.on("offer", handleRecieveCall);
         socketRef.current.on("answer", handleAnswer);
         socketRef.current.on("ice-candidate", handleNewICECandidateMsg);
+        socketRef.current.on("peer-left", handlePeerLeaving);
+        // socketRef.current.on("next-user", handleTimerUp)
       });
-    
+    //If the time runs out call a new user if there is one
+
     //Removes sockets on reload
-    const removeSocketRefs = async () => {;
+    const removeSocketRefs = async () => {
       await socketRef.current.emit("user-leaving-room", roomname);
       await socketRef.current.disconnect();
     };
     window.addEventListener("beforeunload", removeSocketRefs);
     //Removes sockets on page change
-    return async () => {
-      console.log(otherUser);
-      await socketRef.current.emit("user-leaving-room", roomname);
-      await socketRef.current.disconnect();
-      console.log(otherUser.current);
+    return () => {
+      const onPageChange = async () => {
+        await socketRef.current.emit("user-leaving-room", {
+          roomname: roomname,
+          otherUser: otherUser?.current,
+        });
+        await socketRef.current.disconnect();
+      };
+      onPageChange();
     };
   }, []);
 
@@ -168,27 +180,87 @@ export default function RoomName() {
   };
 
   const handleNewICECandidateMsg = async (incoming) => {
-    console.log(incoming);
     //   //this creates a candiate
     const candidate = new RTCIceCandidate(incoming);
-    console.log(candidate);
     //then we call create ice candidate on our peer, then the peers will be swapping candiadtes back and fourth till they can agree on a method that will work for them or a proper handsake
     peerRef.current.addIceCandidate(candidate).catch((e) => console.log(e));
   };
   //This recieves an event and reference the first stream from the users audio and then attached to the sources object so then it's display on our video objects
   const handleTrackEvent = (e) => {
     partnerVideo.current.srcObject = e.streams[0];
+    // if(timer > 0){
+    //  timerRef.current = setInterval(() => setTimer(timer -1), 1000)
+    // }
   };
+  //Disconnects the user video stream and starts timer again
+  const handlePeerLeaving = () => {
+    console.log("ran");
+    setTimer(initialStateTimer);
+    otherUser.current = null;
+    peerRef.current = null;
+    partnerVideo.current.srcObject = undefined;
+  };
+  //Handles timer ending
+  if (timer === 0) {
+    socketRef.current.emit("timer-up", {
+      roomname: roomname,
+      otherUser: otherUser?.current,
+    });
+    setTimer(initialStateTimer);
+    otherUser.current = null;
+    peerRef.current = null;
+    partnerVideo.current.srcObject = undefined;
+    socketRef.current.emit("join room", roomname);
+  }
+
+  // const handleTimerUp= () =>{
+  //   setTimer(initialStateTimer);
+  //   otherUser.current = null;
+  //   peerRef.current = null;
+  //   partnerVideo.current.srcObject = undefined;
+  // }
+
+  //Handles the timer
+  useEffect(() => {
+    if (partnerVideo) {
+      const timerLogic =
+        timer > 0 &&
+        timer !== initialStateTimer &&
+        setInterval(() => setTimer(timer - 1), 1000);
+      return () => {
+        clearInterval(timerLogic);
+      };
+    }
+
+    console.log("called");
+  }, [timer]);
+
   return (
     <div className="flex justify-center">
       <Head>
         <title>{roomname}</title>
       </Head>
-  
+
       <div className="flex flex-col content-start justify-center pt-14 align-center w-60 ">
         <h1 className="text-3xl">{roomname}</h1>
         <video autoPlay ref={userVideo && userVideo} className="mb-4" />
-        <video autoPlay ref={partnerVideo && partnerVideo} />
+        <h1 className="text-xl">{timer !== 300 ? timer : "5:00"}</h1>
+        <video
+          autoPlay
+          ref={partnerVideo && partnerVideo}
+          onPlay={(e) => {
+            setTimer(timer - 1);
+          }}
+        />
+        <button
+          onClick={(e) => {
+            socketRef.current.emit("reset-rooms");
+          }}
+          className="w-full py-2 mt-2 mb-4 font-bold text-white uppercase bg-blue-500 border border-blue-500 rounded text-m"
+        >
+          {" "}
+          Reset Server
+        </button>
       </div>
     </div>
   );
